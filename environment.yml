@@ -18,6 +18,3 @@ dependencies:
   - pygments==2.6.1
   - pip:
       - pyreadline
-	
-    
-
