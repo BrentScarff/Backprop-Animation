@@ -427,8 +427,12 @@ class NetworkSetup(NetworkScene):
         self.step_through(weight_index_1)
         #self.make_room(0.01*DOWN)
         self.recall_delta()
-
-        
+        weight_index_2 = [1,1,2]# [layer,1,2], [layer,2,2], [layer,2,1]]
+        #for weight_index, direction in zip(weight_indexs_1, directions):
+        self.find_derivative(weight_index_2)
+        self.partial_derivative(weight_index=weight_index_2)
+        self.step_through(weight_index_2)
+        self.delta_transform()
         #self.show_bias()
         #self.organize_activations_into_column()
         #self.organize_weights_as_matrix()
@@ -889,26 +893,20 @@ class NetworkSetup(NetworkScene):
                 column_vec.next_to(self.columns[-1], 4*position)
             else:
                 column_vec.next_to(self.matrix_equals, 2*position)
-            #self.columns.add(column_vec)
         except:
             self.columns = VGroup()
             self.column_brackets = VGroup()
             self.matrix_eqn = VGroup()
             self.rects = VGroup()
             column_vec.next_to(self.equation, 3*RIGHT)
-            #self.columns.add(column_vec)
 
         brackets = self.get_brackets(column_vec ,color=color)
-        #self.column_brackets.add(brackets)
         
         self.columns.add(column_vec)
         self.column_brackets.add(brackets)
         self.rects.add(rects)
         return [ReplacementTransform(VGroup(*[rect_1.copy(), rect_2.copy()]), brackets),
                  ReplacementTransform(column_move, column_vec)]
-                 #MoveToTarget(column_move)]
-        # self.play(Transform(VGroup(*[rect_1.copy(), rect_2.copy()]), brackets),
-        #          MoveToTarget(column_move))
 
     def add_multipliers(self):
         hadamard = TexMobject("\\odot")
@@ -924,7 +922,6 @@ class NetworkSetup(NetworkScene):
         mid_mobject.move_to(left_mobject.get_right() + mid)
 
     def write_out_formulas(self):
-        
         de_dw_mat = TexMobject("{\\partial E", "\\over", "\\partial W^{(2)}}")
         de_da_vec = TexMobject("{\\partial E", "\\over", "\\partial A^{(3)}}")
         da_dz_vec = TexMobject("{\\partial A", "\\over", "\\partial Z^{(3)}}")
@@ -1019,13 +1016,15 @@ class NetworkSetup(NetworkScene):
         self.play(FadeIn(self.full_network))
 
     def recall_delta(self):
+        # Forgive me...this needs refactoring.
+
         recall_eqn = self.full_mat_eqn
-        #recall_eqn.scale_in_place(0.9)
         equation = VGroup(*[self.de_dw, self.bp, self.end_derivative]) 
         equation.generate_target()
         equation.target.scale_in_place(self.network_scale)
         equation.target.shift(0.7*DOWN)
         
+        self.full_network.save_state()
         self.play(self.full_network.scale_in_place, 0.8)
         self.play(self.full_network.fade, )
         equation.target.align_to(self.full_network, LEFT)
@@ -1081,7 +1080,7 @@ class NetworkSetup(NetworkScene):
         self.play(ShowCreation(eqn_rects[-1]))
 
         delta_1 = TexMobject("\\delta^L_1", color=BLUE)
-        delta_2 = TexMobject("\\delta^L_1", color=GREEN)
+        delta_2 = TexMobject("\\delta^L_2", color=GREEN)
         delta_column = VGroup(delta_1, delta_2)
         delta_column.arrange(DOWN)
         delta_column.move_to(self.hadamard[0])
@@ -1097,11 +1096,96 @@ class NetworkSetup(NetworkScene):
         self.play(Transform(
                 VGroup(self.columns[0][1], self.columns[1][1]), 
                 VGroup(delta_column[1])),
-                FadeIn(delta_brackets),
-        VGroup(self.columns[2], self.hadamard[1], self.column_brackets[2]).next_to,
-        delta_brackets, RIGHT)
-        #self.play(FadeIn(delta_brackets))
-            
+            FadeIn(delta_brackets),
+            VGroup(self.columns[2], self.hadamard[1], self.column_brackets[2]).next_to,
+                delta_brackets, RIGHT, 0.1)
+
+        delta_1.move_to(eqn_rects[2]) 
+        delta_2.move_to(eqn_rects[5])
+        self.play(ReplacementTransform(self.bp[2][:2], delta_1))
+        self.play(ReplacementTransform(self.bp[4][:2], delta_2))
+
+        delta_2.generate_target()
+        delta_2.target.scale_in_place(self.label_scale)
+        delta_2.target.set_color(WHITE)
+        delta_2.target.next_to(self.bp[3], RIGHT, 0.1)
+
+        self.play(FadeOut(eqn_rects[-1]))
+        self.play(MoveToTarget(delta_2))
+        right_part_eqn = VGroup(*[self.bp[4][2:], self.bp[5:], self.end_derivative])
+
+        self.play(right_part_eqn.next_to, delta_2, RIGHT, 0.1)
+        
+        left_part_eqn = VGroup(*[self.bp[2][-1], self.bp[3], delta_2])
+        self.play(FadeOut(eqn_rects[2]))
+
+        delta_1.generate_target()
+        delta_1.target.scale_in_place(self.label_scale)
+        delta_1.target.set_color(WHITE)
+        delta_1.target.next_to(self.bp[1], RIGHT, 0.1)
+        self.play(MoveToTarget(delta_1))
+
+        self.play(VGroup(left_part_eqn, right_part_eqn).next_to, delta_1, RIGHT, 0.1)
+        self.bp[2][:2].replace(delta_1)
+        self.bp[2][:2].set_color(WHITE)
+        self.bp[4][:2].replace(delta_2)
+        self.bp[4][:2].set_color(WHITE)
+        self.play(FadeOut(VGroup(
+            self.columns,
+            self.de_dw_terms,
+            self.column_brackets[2:],
+            self.hadamard[1], 
+            delta_brackets, 
+            self.matrix_equals,
+            )), 
+            FadeOut(recall_text))
+        print(len(self.columns))
+        self.remove(delta_2)
+        self.remove(delta_1)
+        equation = VGroup(
+            self.de_dw, 
+            self.bp, 
+            self.end_derivative)
+        equation.generate_target()
+        equation.target.next_to(self.equation[-1], UP, aligned_edge=LEFT)
+        self.play(MoveToTarget(equation))
+        
+        self.play(self.full_network.restore)
+
+        self.equation.add(equation)
+
+    def delta_transform(self):
+        delta_1 = TexMobject("\\delta^L_1", color=BLUE)
+        delta_2 = TexMobject("\\delta^L_2", color=GREEN)
+        delta_1.move_to(self.bp[2]) 
+        delta_2.move_to(self.bp[4])
+        self.play(ReplacementTransform(self.bp[2][:2], delta_1))
+        self.play(ReplacementTransform(self.bp[4][:2], delta_2))
+
+        delta_2.generate_target()
+        delta_2.target.scale_in_place(self.label_scale)
+        delta_2.target.set_color(WHITE)
+        delta_2.target.next_to(self.bp[3], RIGHT, 0.1)
+
+        self.play(MoveToTarget(delta_2))
+        right_part_eqn = VGroup(*[self.bp[4][2:], self.bp[5:], self.end_derivative])
+
+        self.play(right_part_eqn.next_to, delta_2, RIGHT, 0.1)
+        left_part_eqn = VGroup(*[self.bp[2][-1], self.bp[3], delta_2])
+
+        delta_1.generate_target()
+        delta_1.target.scale_in_place(self.label_scale)
+        delta_1.target.set_color(WHITE)
+        delta_1.target.next_to(self.bp[1], RIGHT, 0.1)
+        #VGroup(left_part_eqn, right_part_eqn).generate_target()
+
+        self.play(MoveToTarget(delta_1)),
+        self.play(VGroup(left_part_eqn, right_part_eqn).next_to, delta_1, RIGHT, 0.1)
+        # self.bp[2][:2].replace(delta_1)
+        # self.bp[2][:2].set_color(WHITE)
+        # self.bp[4][:2].replace(delta_2)
+        # self.bp[4][:2].set_color(WHITE)
+
     def partial_derivative(self, weight_index):
         '''
         weight index is a list [layer, j, k]
@@ -1220,6 +1304,7 @@ class NetworkSetup(NetworkScene):
         bp.arrange(RIGHT, buff=eqn_buff)
         bp.next_to(self.de_dw, buff=eqn_buff)
         end_derivative.next_to(bp, buff=eqn_buff)
+        self.eqn_buff = eqn_buff
         self.bra = bra
         self.ket = ket
         self.plus = plus
@@ -1403,73 +1488,7 @@ class NetworkSetup(NetworkScene):
         # self.symbols = symbols
         # self.weighted_sum = VGroup(w_labels, neuron_labels, symbols)
 
-    def functionify(self, layer_index):
-
-        for n, label in enumerate(self.e_labels.copy()):
-            animate_1 = VGroup()
-            animate_2 = VGroup()
-
-            label.generate_target()
-            label.target.to_edge(UL)
-            label.target.shift(DOWN*n)
-            label.target.scale(1/0.7)
-            animate_1.add(
-                MoveToTarget(label),
-                Indicate(self.neuron_labels[layer_index][n], scale_factor=2),
-                Indicate(self.sublayer_labels[layer_index-1][n],scale_factor=2)
-            )
-            #func.set_color(self.e_labels.get_color())
-            bra = TexMobject("(")
-            ket = TexMobject(")")
-            comma = TexMobject(",")
-            comma.scale(self.label_scale)
-
-            labels = VGroup(*[
-                self.neuron_labels[layer_index][n].copy(),
-                self.sublayer_labels[layer_index-1][n].copy(),
-            ])
-            #func_label = VGroup(*[TexMobject(l.get_tex_string() + ",") for l in labels])
-            
-            func_label = VGroup(*[
-                 labels[0].copy(),
-                 comma.copy(),
-                 labels[1].copy(),
-                 comma.copy()
-             ])
-
-            func_label.arrange(RIGHT, buff=0.5*SMALL_BUFF)
-            comma_list = VGroup(*[func_label[i] for i in [1,3]])
-            comma_list.shift(DOWN*0.5*labels[0].get_height())
-            func = VGroup(*[bra, func_label, ket])
-            func_label.scale(1/0.7)
-            bra.scale(self.label_scale)
-            ket.scale(self.label_scale)#, about_edge=RIGHT)
-
-            func.arrange(RIGHT, buff=0.5*SMALL_BUFF)
-            func.next_to(label.target, buff=SMALL_BUFF)
-
-            animate_1.add(Write(VGroup(*[bra,ket])))
-            animate_2.add(
-                ReplacementTransform(labels, func_label),
-                #Write(VGroup(func_list)),
-                ApplyMethod(ket.shift,RIGHT),
-                #Write(comma)
-            )
-            self.play(AnimationGroup(*animate_1, lag_ratio=0.8))
-            self.play(AnimationGroup(*animate_2, lag_ratio=0.8))
-            
-            self.func = func
-
-            w_label_fun = self.w_labels[layer_index-1][n].copy()
-            w_label_fun.scale(self.label_scale)
-            w_label_fun.next_to(ket, LEFT)
-
-            self.play(
-                AnimationGroup(
-                Indicate(self.w_labels_nn[layer_index-1][n], scale_factor=2),
-                Write(w_label_fun),
-                lag_ratio=0.8)
-                )
+    
     def show_first_neuron_weighted_sum(self):
         neuron = self.network_mob.layers[1].neurons[0]
         neuron_labels = VGroup(*self.neuron_labels[:2]).copy()
