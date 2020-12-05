@@ -420,19 +420,32 @@ class NetworkSetup(NetworkScene):
         self.add_multipliers()
         self.write_out_formulas()
         self.reset_network()
-        weight_index_1 = [1,1,1]# [layer,1,2], [layer,2,2], [layer,2,1]]
-        #for weight_index, direction in zip(weight_indexs_1, directions):
+        
+        weight_index_1 = [1,1,1]
         self.find_derivative(weight_index_1)
         self.partial_derivative(weight_index=weight_index_1)
         self.step_through(weight_index_1)
         #self.make_room(0.01*DOWN)
         self.recall_delta()
-        weight_index_2 = [1,1,2]# [layer,1,2], [layer,2,2], [layer,2,1]]
-        #for weight_index, direction in zip(weight_indexs_1, directions):
-        self.find_derivative(weight_index_2)
-        self.partial_derivative(weight_index=weight_index_2)
-        self.step_through(weight_index_2)
-        self.delta_transform()
+        layer_1 = 1
+        weight_indexs_1 = [[layer_1,1,2], [layer_1,2,2], [layer_1,2,1]]
+        directions_1 = [3.5*RIGHT, DOWN, 3.5*LEFT]
+        for i, (weight_index, direction) in enumerate(zip(weight_indexs_1, directions_1)):
+            if i == 2:
+                self.play(self.equation[-1].fade, 0.8)
+
+            self.find_derivative(weight_index)
+            self.partial_derivative(weight_index=weight_index)
+            self.step_through(weight_index)
+            self.delta_transform()
+            self.make_room(direction)
+        self.play(self.equation[-2].set_opacity, 1)
+
+        self.play(FadeOut(self.full_network))
+        self.play(*self.show_col_matrix(self.de_da_terms[-4:].copy(), BLUE_B, position=DOWN))
+        self.play(*self.show_col_matrix(self.da_dz_terms[-4:].copy(), BLUE_B))
+
+        #self.play(FadeOut(self.equation[-2]))
         #self.show_bias()
         #self.organize_activations_into_column()
         #self.organize_weights_as_matrix()
@@ -828,34 +841,48 @@ class NetworkSetup(NetworkScene):
         self.network_mob.edge_groups.restore,
         self.network_mob.out_edge_groups.restore)
 
-    def make_room(self, direction):
+    def make_room(self, direction, scale=0.7):
         # direction will typically go '',RIGHT, DOWN, LEFT
-        #self.network_scale = 0.7
         network_mob = self.network_mob
         equation = VGroup(*[self.de_dw, self.bp, self.end_derivative]) 
         equation.generate_target()
-        equation.target.scale_in_place(self.network_scale)
+        equation.target.scale_in_place(scale)
         
         try:
             equation.target.next_to(self.equation[-1], direction, aligned_edge=LEFT)
-            self.equation.add(equation.target)
             self.de_dw_terms.add(self.de_dw)#, self.bp[0])
             self.equals_terms.add(self.equals)
-            self.de_da_terms.add(self.bp[1])
+            self.de_da_terms.add(self.de_da_term)
             self.da_dz_terms.add(self.end_derivative[0])
             self.dz_dw_terms.add(self.end_derivative[1])
         except:
             self.equation = VGroup()
             equation.target.to_edge(direction)
-            self.equation.add(equation.target)
             self.de_dw_terms = VGroup()
             self.de_dw_terms=self.de_dw#, self.bp[0])
             self.equals_terms=self.equals
-            self.de_da_terms=self.bp[1]
+            self.de_da_terms=self.de_da_term
             self.da_dz_terms=self.end_derivative[0]
             self.dz_dw_terms=self.end_derivative[1]
-        
+
         self.play(MoveToTarget(equation))
+        self.equation.add(equation)
+
+    def organize_terms(self):
+
+        try:
+            self.de_dw_terms.add(self.de_dw)
+            self.equals_terms.add(self.equals)
+            self.de_da_terms.add(self.bp[1])
+            self.da_dz_terms.add(self.end_derivative[0])
+            self.dz_dw_terms.add(self.end_derivative[1])
+        except:
+            self.de_dw_terms = VGroup()
+            self.de_dw_terms = self.de_dw
+            self.equals_terms = self.equals
+            self.de_da_terms = self.bp[1]
+            self.da_dz_terms = self.end_derivative[0]
+            self.dz_dw_terms = self.end_derivative[1]
 
     def get_brackets(self, mob, color):
         lb, rb = both = TexMobject("\\big[","\\big]", color=color)
@@ -889,7 +916,7 @@ class NetworkSetup(NetworkScene):
             column_vec.arrange(RIGHT)
         
         try:
-            if position is RIGHT:
+            if position is not LEFT:
                 column_vec.next_to(self.columns[-1], 4*position)
             else:
                 column_vec.next_to(self.matrix_equals, 2*position)
@@ -898,7 +925,7 @@ class NetworkSetup(NetworkScene):
             self.column_brackets = VGroup()
             self.matrix_eqn = VGroup()
             self.rects = VGroup()
-            column_vec.next_to(self.equation, 3*RIGHT)
+            column_vec.next_to(self.equation, 3*position)
 
         brackets = self.get_brackets(column_vec ,color=color)
         
@@ -1016,7 +1043,7 @@ class NetworkSetup(NetworkScene):
         self.play(FadeIn(self.full_network))
 
     def recall_delta(self):
-        # Forgive me...this needs refactoring.
+        # ...this needs refactoring.
 
         recall_eqn = self.full_mat_eqn
         equation = VGroup(*[self.de_dw, self.bp, self.end_derivative]) 
@@ -1082,6 +1109,7 @@ class NetworkSetup(NetworkScene):
         delta_1 = TexMobject("\\delta^L_1", color=BLUE)
         delta_2 = TexMobject("\\delta^L_2", color=GREEN)
         delta_column = VGroup(delta_1, delta_2)
+        delta_column.scale(self.network_scale)
         delta_column.arrange(DOWN)
         delta_column.move_to(self.hadamard[0])
         delta_brackets = self.get_brackets(delta_column, WHITE)
@@ -1098,38 +1126,15 @@ class NetworkSetup(NetworkScene):
                 VGroup(delta_column[1])),
             FadeIn(delta_brackets),
             VGroup(self.columns[2], self.hadamard[1], self.column_brackets[2]).next_to,
-                delta_brackets, RIGHT, 0.1)
-
-        delta_1.move_to(eqn_rects[2]) 
-        delta_2.move_to(eqn_rects[5])
-        self.play(ReplacementTransform(self.bp[2][:2], delta_1))
-        self.play(ReplacementTransform(self.bp[4][:2], delta_2))
-
-        delta_2.generate_target()
-        delta_2.target.scale_in_place(self.label_scale)
-        delta_2.target.set_color(WHITE)
-        delta_2.target.next_to(self.bp[3], RIGHT, 0.1)
+                delta_brackets, RIGHT, 0.1) 
 
         self.play(FadeOut(eqn_rects[-1]))
-        self.play(MoveToTarget(delta_2))
-        right_part_eqn = VGroup(*[self.bp[4][2:], self.bp[5:], self.end_derivative])
-
-        self.play(right_part_eqn.next_to, delta_2, RIGHT, 0.1)
-        
-        left_part_eqn = VGroup(*[self.bp[2][-1], self.bp[3], delta_2])
         self.play(FadeOut(eqn_rects[2]))
 
-        delta_1.generate_target()
-        delta_1.target.scale_in_place(self.label_scale)
-        delta_1.target.set_color(WHITE)
-        delta_1.target.next_to(self.bp[1], RIGHT, 0.1)
-        self.play(MoveToTarget(delta_1))
+        self.delta_transform(scale=self.network_scale)
+        self.add(self.bp[2][:2])
+        self.add(self.bp[4][:2])
 
-        self.play(VGroup(left_part_eqn, right_part_eqn).next_to, delta_1, RIGHT, 0.1)
-        self.bp[2][:2].replace(delta_1)
-        self.bp[2][:2].set_color(WHITE)
-        self.bp[4][:2].replace(delta_2)
-        self.bp[4][:2].set_color(WHITE)
         self.play(FadeOut(VGroup(
             self.columns,
             self.de_dw_terms,
@@ -1139,22 +1144,21 @@ class NetworkSetup(NetworkScene):
             self.matrix_equals,
             )), 
             FadeOut(recall_text))
-        print(len(self.columns))
-        self.remove(delta_2)
-        self.remove(delta_1)
-        equation = VGroup(
-            self.de_dw, 
-            self.bp, 
-            self.end_derivative)
-        equation.generate_target()
-        equation.target.next_to(self.equation[-1], UP, aligned_edge=LEFT)
-        self.play(MoveToTarget(equation))
-        
-        self.play(self.full_network.restore)
 
-        self.equation.add(equation)
+        self.make_room(UP, scale=1)
+        # equation = VGroup(*[
+        #     self.de_dw, 
+        #     self.bp, 
+        #     self.end_derivative])
+        # equation.generate_target()
+        # equation.target.next_to(self.equation[-1], UP, aligned_edge=LEFT)
+       
+        # self.play(MoveToTarget(equation))
+        # self.equation.add(equation)
 
-    def delta_transform(self):
+        self.play(self.full_network.restore)        
+
+    def delta_transform(self, scale=1):
         delta_1 = TexMobject("\\delta^L_1", color=BLUE)
         delta_2 = TexMobject("\\delta^L_2", color=GREEN)
         delta_1.move_to(self.bp[2]) 
@@ -1163,28 +1167,26 @@ class NetworkSetup(NetworkScene):
         self.play(ReplacementTransform(self.bp[4][:2], delta_2))
 
         delta_2.generate_target()
-        delta_2.target.scale_in_place(self.label_scale)
-        delta_2.target.set_color(WHITE)
-        delta_2.target.next_to(self.bp[3], RIGHT, 0.1)
+        delta_2.target.scale_in_place(scale)
+        delta_2.target.next_to(self.bp[3], RIGHT, 0.1*scale)
 
         self.play(MoveToTarget(delta_2))
         right_part_eqn = VGroup(*[self.bp[4][2:], self.bp[5:], self.end_derivative])
 
-        self.play(right_part_eqn.next_to, delta_2, RIGHT, 0.1)
+        self.play(right_part_eqn.next_to, delta_2, RIGHT, 0.1*scale)
         left_part_eqn = VGroup(*[self.bp[2][-1], self.bp[3], delta_2])
 
         delta_1.generate_target()
-        delta_1.target.scale_in_place(self.label_scale)
-        delta_1.target.set_color(WHITE)
-        delta_1.target.next_to(self.bp[1], RIGHT, 0.1)
-        #VGroup(left_part_eqn, right_part_eqn).generate_target()
+        delta_1.target.scale_in_place(scale)
+        delta_1.target.next_to(self.bp[1], RIGHT, 0.1*scale)
+        self.play(MoveToTarget(delta_1))
+        self.play(VGroup(left_part_eqn, right_part_eqn).next_to, delta_1, RIGHT, 0.1*scale)
+        
+        self.bp[2][:2].replace(delta_1)
+        self.bp[4][:2].replace(delta_2)
 
-        self.play(MoveToTarget(delta_1)),
-        self.play(VGroup(left_part_eqn, right_part_eqn).next_to, delta_1, RIGHT, 0.1)
-        # self.bp[2][:2].replace(delta_1)
-        # self.bp[2][:2].set_color(WHITE)
-        # self.bp[4][:2].replace(delta_2)
-        # self.bp[4][:2].set_color(WHITE)
+        self.remove(delta_2)
+        self.remove(delta_1)
 
     def partial_derivative(self, weight_index):
         '''
@@ -1237,7 +1239,8 @@ class NetworkSetup(NetworkScene):
         # These backprop (bp) and chain_rule terms are only needed     
         # if there is one layer. If there is more than 1 layer to  
         # backpropogate these terms will be overwritten below
-        bp = VGroup(*[equals, delta_L]) 
+        bp = VGroup(*[equals, delta_L])
+        self.de_da_term = bp[1] 
         chain_rule = delta_L        
         if (layer_index+1) < len(self.network_mob.layers):
             l_terms = VGroup() # intermediate layer terms
@@ -1283,6 +1286,7 @@ class NetworkSetup(NetworkScene):
                     chain_rule[3:],
                     ket,
             ])
+            self.de_da_term = bp[2][:2] 
 
         # Add the labels in the layer = layer_index (i.e. end of chain)
         chain_end = VGroup()            
