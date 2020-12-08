@@ -432,7 +432,7 @@ class NetworkSetup(NetworkScene):
         directions_1 = [3.5*RIGHT, DOWN, 3.5*LEFT]
         for i, (weight_index, direction) in enumerate(zip(weight_indexs_1, directions_1)):
             if i == 2:
-                self.play(self.equation[-1].fade, 0.8)
+                self.play(self.equation[-1].fade, 0.9)
 
             self.find_derivative(weight_index)
             self.partial_derivative(weight_index=weight_index)
@@ -443,7 +443,10 @@ class NetworkSetup(NetworkScene):
 
         self.play(FadeOut(self.full_network))
         self.play(*self.show_col_matrix(self.de_da_terms[-4:].copy(), BLUE_B, position=DOWN))
-        self.play(*self.show_col_matrix(self.da_dz_terms[-4:].copy(), BLUE_B))
+        self.play(*self.show_col_matrix(self.da_dz_terms[-4:].copy(), YELLOW_B))
+        self.play(*self.show_col_matrix(self.dz_dw_terms[-4:].copy(), RED_B, matrix=True))
+
+        self.break_down_delta_l()
 
         #self.play(FadeOut(self.equation[-2]))
         #self.show_bias()
@@ -932,6 +935,7 @@ class NetworkSetup(NetworkScene):
         self.columns.add(column_vec)
         self.column_brackets.add(brackets)
         self.rects.add(rects)
+
         return [ReplacementTransform(VGroup(*[rect_1.copy(), rect_2.copy()]), brackets),
                  ReplacementTransform(column_move, column_vec)]
 
@@ -1132,8 +1136,10 @@ class NetworkSetup(NetworkScene):
         self.play(FadeOut(eqn_rects[2]))
 
         self.delta_transform(scale=self.network_scale)
-        self.add(self.bp[2][:2])
-        self.add(self.bp[4][:2])
+        # Add these here or the disappear on next animation before 
+        # reappearing in make_room.
+        self.add(self.bp[2][0])
+        self.add(self.bp[4][0])
 
         self.play(FadeOut(VGroup(
             self.columns,
@@ -1182,11 +1188,71 @@ class NetworkSetup(NetworkScene):
         self.play(MoveToTarget(delta_1))
         self.play(VGroup(left_part_eqn, right_part_eqn).next_to, delta_1, RIGHT, 0.1*scale)
         
-        self.bp[2][:2].replace(delta_1)
-        self.bp[4][:2].replace(delta_2)
+        #sub delta for the two derivative terms
+        self.bp[2][0].replace(delta_1) #replaces object
+        self.bp[2][0].tex_string = delta_1.get_tex_string() #replaces tex
+        self.bp[2].remove(self.bp[2][1]) #removes extra terms not needed
+
+        self.bp[4][0].replace(delta_2)
+        self.bp[4][0].tex_string = delta_2.get_tex_string()
+        self.bp[4].remove(self.bp[4][1])
 
         self.remove(delta_2)
         self.remove(delta_1)
+
+    def flatten(self, tex_group):
+        flat=[]
+        for submobject in tex_group:
+            if isinstance(submobject, TexMobject):
+                flat.append(submobject)#.get_tex_string())
+            else:
+                flat.extend(self.flatten(submobject))
+
+        return flat
+
+    def break_down_delta_l(self):
+
+        flat_tex = self.flatten(self.columns[-3].copy())
+
+        deltas_1 = VGroup()
+        deltas_2 = VGroup()
+        dz_da_1 = VGroup()
+        dz_da_2 = VGroup()
+        for tex in flat_tex:
+            if "\\delta^L_1" in tex.get_tex_string():
+                deltas_1.add(tex)
+            elif "\\delta^L_2" in tex.get_tex_string():
+                deltas_2.add(tex)
+            elif "\\partial z^{(3)}_1" in tex.get_tex_string():
+                dz_da_1.add(tex)
+            elif "\\partial z^{(3)}_2" in tex.get_tex_string():
+                dz_da_2.add(tex)
+
+        delta_1 = deltas_1[0].copy()
+        delta_2 = deltas_2[0].copy()
+        dz_da_1.generate_target()
+        dz_da_2.generate_target()
+        delta_1.next_to(self.columns[-3][1], 3*DOWN, aligned_edge=LEFT)
+        delta_2.next_to(delta_1, 2.5*DOWN)
+
+        self.play(ReplacementTransform(deltas_1, delta_1))
+        self.play(ReplacementTransform(deltas_2, delta_2))
+
+        dz_da_1.target.arrange(RIGHT, buff=0.4)
+        dz_da_2.target.arrange(RIGHT, buff=0.4)
+        dz_da_1.target.next_to(delta_1, RIGHT, buff=0.4)
+        dz_da_2.target.next_to(delta_2, RIGHT, buff=0.4)
+        brackets_1 = self.get_brackets(dz_da_1.target, color=BLUE_B)
+        brackets_2 = self.get_brackets(dz_da_2.target, color=GREEN_B)
+
+        self.play(MoveToTarget(dz_da_1))
+        self.play(MoveToTarget(dz_da_2))
+        partial_brackets = self.get_brackets(VGroup(dz_da_1, dz_da_2), color=BLUE_B)
+        self.play(ShowCreation(brackets_1), ShowCreation(brackets_2))
+        left_brackets = VGroup(brackets_1[0], brackets_2[0])
+        right_brackets = VGroup(brackets_1[1], brackets_2[1])
+        self.play(Transform(left_brackets, partial_brackets[0]),
+                Transform(right_brackets, partial_brackets[1]))
 
     def partial_derivative(self, weight_index):
         '''
@@ -1286,7 +1352,8 @@ class NetworkSetup(NetworkScene):
                     chain_rule[3:],
                     ket,
             ])
-            self.de_da_term = bp[2][:2] 
+            self.de_da_term = bp[2:-1]
+            #self.dz_da_term = bp[2][-1] 
 
         # Add the labels in the layer = layer_index (i.e. end of chain)
         chain_end = VGroup()            
