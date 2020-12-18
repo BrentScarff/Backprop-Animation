@@ -484,14 +484,14 @@ class NetworkSetup(NetworkScene):
 
         if layer_index > 0:
             neuron_labels = VGroup(*[
-                TexMobject("%s^{(%d)}_%d"%(label, layer_index+1,d+1))
+                TexMobject("%s^{(%d)}_%d"%(label, layer_index,d+1))
                 for d in range(len(layer.neurons))
             ])
             if bias:
                 self.activate_bias(layer_index)
         else:
             neuron_labels = VGroup(*[
-                TexMobject("x^{(%d)}_%d"%(layer_index+1,d+1))
+                TexMobject("x^{(%d)}_%d"%(layer_index,d+1))
                 for d in range(len(layer.neurons))
             ])
 
@@ -529,7 +529,7 @@ class NetworkSetup(NetworkScene):
 
         e_labels = VGroup(*[
             TexMobject("e",
-                "^{(%d)}_%d"%(self.network_mob.neural_network.num_layers+1,d+1))
+                "^{(%d)}_%d"%(self.network_mob.neural_network.num_layers,d+1))
             for d in range(len(layer.neurons))],
             TexMobject("e_{T}")
         )
@@ -1183,9 +1183,9 @@ class NetworkSetup(NetworkScene):
 
     def write_out_formulas(self):
         de_dw_mat = TexMobject("{\\partial E", "\\over", "\\partial W", "^{(2)}}")
-        de_da_vec = TexMobject("{\\partial E", "\\over", "\\partial A", "^{(3)}}")
-        da_dz_vec = TexMobject("{\\partial A", "^{(3)}", "\\over", "\\partial Z", "^{(3)}}")
-        dz_dw_mat = TexMobject("{\\partial Z", "^{(3)}", "\\over", "\\partial W", "^{(2)}}")
+        de_da_vec = TexMobject("{\\partial E", "\\over", "\\partial A", "^{(2)}}")
+        da_dz_vec = TexMobject("{\\partial A", "^{(2)}", "\\over", "\\partial Z", "^{(2)}}")
+        dz_dw_mat = TexMobject("{\\partial Z", "^{(2)}", "\\over", "\\partial W", "^{(2)}}")
         vec_derivatives = VGroup(*[
             de_da_vec,
             da_dz_vec,
@@ -1449,9 +1449,9 @@ class NetworkSetup(NetworkScene):
                 deltas_1.add(tex)
             elif "\\delta^L_2" in tex.get_tex_string():
                 deltas_2.add(tex)
-            elif "\\partial z^{(3)}_1" in tex.get_tex_string():
+            elif "\\partial z^{(2)}_1" in tex.get_tex_string():
                 dz_da_1.add(tex)
-            elif "\\partial z^{(3)}_2" in tex.get_tex_string():
+            elif "\\partial z^{(2)}_2" in tex.get_tex_string():
                 dz_da_2.add(tex)
 
         delta_1 = deltas_1[0].copy()
@@ -1549,9 +1549,9 @@ class NetworkSetup(NetworkScene):
     def write_out_formulas_sublayers(self):
         de_dw_mat = TexMobject("{\\partial E", "\\over", "\\partial W", "^{(1)}}")
         delta_vec = TexMobject("\\delta^L")
-        dz_da_vec = TexMobject("{\\partial Z", "^{(3)}", "\\over", "\\partial A", "^{(2)}}")
-        da_dz_vec = TexMobject("{\\partial A", "^{(2)}", "\\over", "\\partial Z", "^{(2)}}")
-        dz_dw_mat = TexMobject("{\\partial Z", "^{(2)}", "\\over", "\\partial W", "^{(1)}}")
+        dz_da_vec = TexMobject("{\\partial Z", "^{(2)}", "\\over", "\\partial A", "^{(1)}}")
+        da_dz_vec = TexMobject("{\\partial A", "^{(1)}", "\\over", "\\partial Z", "^{(1)}}")
+        dz_dw_mat = TexMobject("{\\partial Z", "^{(1)}", "\\over", "\\partial W", "^{(1)}}")
         vec_derivatives = VGroup(*[
             delta_vec,
             dz_da_vec,
@@ -1633,7 +1633,7 @@ class NetworkSetup(NetworkScene):
         a_var = question.get_part_by_tex("a", substring=False)
         z_var = question.get_part_by_tex("z")
         z_part = self.dz_da[0].get_parts_by_tex("z")
-        a_part = self.dz_da[0].get_part_by_tex("a^{(2)}")
+        a_part = self.dz_da[0].get_part_by_tex("a^{(1)}")
         self.play(Indicate(z_var, scale_factor=2, run_time=2),
             Indicate(z_part, scale_factor=2, run_time=2))
         
@@ -1704,7 +1704,7 @@ class NetworkSetup(NetworkScene):
         dz_da.submobjects = w_mat
 
         dz_dw = self.final_eqn[-1][-1]
-        x_mat = TexMobject("X","^{(1)}")
+        x_mat = TexMobject("X","^{(0)}")
         x_mat.move_to(dz_dw)
         self.play(ReplacementTransform(self.zw_to_a.copy(), x_mat), FadeOut(dz_dw))
         dz_dw.submobjects = x_mat
@@ -1718,29 +1718,34 @@ class NetworkSetup(NetworkScene):
         final_eqn_set.next_to(self.final_eqn[-1], DOWN) 
         self.deltaL_def.next_to(final_eqn_set, DOWN)
 
-        self.play(FadeIn(final_eqn_set), FadeIn(self.deltaL_def))
+        #self.play(FadeIn(final_eqn_set), FadeIn(self.deltaL_def))
+        self.play(FadeIn(self.deltaL_def))
+
 
     def generalize_equations(self):        
-        for tex in it.chain(self.final_eqn[-1], self.final_eqn[0:-1], self.deltaL_def):
+        general_text = TextMobject("Generalizing the equations...")
+        general_text.next_to(self.final_eqn[-1], UP)
+        self.play(FadeIn(general_text)) 
+        for tex in it.chain(self.final_eqn[-1], self.deltaL_def): #self.final_eqn[0:-1],
             one = tex.get_parts_by_tex("^{(1)}")
             two = tex.get_parts_by_tex("^{(2)}")
-            three = tex.get_parts_by_tex("^{(3)}")
-            for part_one, part_two, part_three in it.zip_longest(one,two,three):
+            zero = tex.get_parts_by_tex("^{(0)}")
+            for part_one, part_two, part_zero in it.zip_longest(one,two,zero):
                 if part_one is not None:
                     ell = part_one.get_tex_string()
-                    ell = TexMobject(ell.replace("1", "\\ell-1"))
+                    ell = TexMobject(ell.replace("1", "\\ell"))
                     ell.replace(part_one)        
                     self.play(Transform(part_one, ell))
                 if part_two is not None:
                     ell = part_two.get_tex_string()
-                    ell = TexMobject(ell.replace("2", "\\ell"))
+                    ell = TexMobject(ell.replace("2", "\\ell+1"))
                     ell.replace(part_two)        
                     self.play(Transform(part_two, ell))
-                if part_three is not None:
-                    ell = part_three.get_tex_string()
-                    ell = TexMobject(ell.replace("3", "\\ell+1"))
-                    ell.replace(part_three)        
-                    self.play(Transform(part_three, ell))
+                if part_zero is not None:
+                    ell = part_zero.get_tex_string()
+                    ell = TexMobject(ell.replace("0", "\\ell-1"))
+                    ell.replace(part_zero)        
+                    self.play(Transform(part_zero, ell))
 
     def partial_derivative(self, weight_index):
         '''
