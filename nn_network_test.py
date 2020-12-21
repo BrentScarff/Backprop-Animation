@@ -186,7 +186,8 @@ class NetworkMobject(VGroup):
             edge_group = VGroup()
             for n1, n2 in it.product(l1.neurons, l2.neurons):
                 edge = self.get_edge(n1, n2)
-                edge.set_opacity(0.3)
+                #edge.set_opacity(0.3)
+                edge.set_color(LIGHT_GREY)
                 edge_group.add(edge)
                 n1.edges_out.add(edge)
                 n2.edges_in.add(edge)
@@ -454,7 +455,14 @@ class NetworkSetup(NetworkScene):
         self.write_out_formulas_sublayers()
         self.dz_da_derivative()
         self.dz_dw_derivative()
-        self.generalize_equations()        
+        self.generalize_equations()
+
+        self.play(FadeIn(self.full_network))
+        self.find_derivative([2,1,3], bias=True)
+        self.partial_derivative(weight_index=[2,1], bias=True)
+        self.step_through([2, 1, 3])
+        self.generalize_bias()
+        self.show_final_eqns()
 
     def setup_network_mob(self):
         self.network_mob.to_edge(LEFT, buff = LARGE_BUFF)
@@ -531,7 +539,7 @@ class NetworkSetup(NetworkScene):
             TexMobject("e",
                 "^{(%d)}_%d"%(self.network_mob.neural_network.num_layers,d+1))
             for d in range(len(layer.neurons))],
-            TexMobject("e_{T}")
+            TexMobject("E")
         )
         e_labels.set_color(RED_B)
         e_labels.scale(self.label_scale)
@@ -558,6 +566,7 @@ class NetworkSetup(NetworkScene):
         for label, neuron in zip(b_labels, layer.neurons):
             label.scale(self.label_scale)
             label.move_to(neuron)
+            neuron.label = label
 
         #self.play(
             #Transform(layer, active_layer),
@@ -648,7 +657,14 @@ class NetworkSetup(NetworkScene):
             for l1 in range(1, size_l+1)
         ])
 
-        for bw_label, edge in zip(bw_labels, edges):
+        try:
+            self.bw_labels.add(bw_labels)
+        except:
+            self.bw_labels = VGroup()
+            self.bw_labels.add(bw_labels)
+        bw_labels_nn = bw_labels.copy()
+
+        for bw_label, edge in zip(bw_labels_nn, edges):
             bw_label.scale(self.label_scale)
             bw_label.rotate(edge.get_angle())
             bw_label.vector = edge.get_unit_vector()
@@ -663,16 +679,18 @@ class NetworkSetup(NetworkScene):
                 bw_label.shift(edge.get_center() + UP*0.4)
 
             bw_label.set_color(BLUE)
+            edge.label = bw_label
+
+        # This is the neural network weight list
+        try:
+            self.bw_labels_nn.add(bw_labels_nn) 
+        except:
+            self.bw_labels_nn = VGroup()
+            self.bw_labels_nn.add(bw_labels_nn)
 
         self.play(*anim_edges,
-            Write(bw_labels, run_time = 1)
+            Write(bw_labels_nn, run_time = 1)
         )
-
-        try:
-            self.bw_labels.add(bw_labels)
-        except:
-            self.bw_labels = VGroup()
-            self.bw_labels.add(bw_labels)
 
     def bce(self):
         ''' 
@@ -837,7 +855,7 @@ class NetworkSetup(NetworkScene):
             network_mob.bias[layer_index:],
             self.b_labels[layer_index:],
             network_mob.bias_edge_groups[layer_index:],
-            self.bw_labels[layer_index:],
+            self.bw_labels_nn[layer_index:],
             self.w_labels_nn[layer_index:], 
             self.neuron_labels[layer_index:],
             sublayer_labels[layer_index-1:],
@@ -871,7 +889,7 @@ class NetworkSetup(NetworkScene):
             self.sublayer_labels, 
             self.b_labels,
             self.w_labels_nn,
-            self.bw_labels])
+            self.bw_labels_nn])
 
         #error_type = self.error_sum
         # error_type.generate_target()
@@ -887,7 +905,7 @@ class NetworkSetup(NetworkScene):
             )
         self.full_network = network
 
-    def find_derivative(self, weight_index):
+    def find_derivative(self, weight_index, bias=False):
         '''
         weight index is a list [layer, j, k]
         negative layer index's work
@@ -901,10 +919,16 @@ class NetworkSetup(NetworkScene):
         L_terms = VGroup() # Penultimate layer terms
         error_t = self.e_labels[-1].copy()
         error_t.generate_target()
-        label_index = neuron_1*n_neurons+neuron_2
-        target_weight = self.w_labels[layer_index-1][label_index].copy()
         
-        network_weight = self.w_labels_nn[layer_index-1][label_index].copy()
+        label_index = neuron_1*n_neurons+neuron_2
+        
+        if not bias:
+            target_weight = self.w_labels[layer_index-1][label_index].copy()
+            network_weight = self.w_labels_nn[layer_index-1][label_index].copy()
+        else:
+            target_weight = self.bw_labels[layer_index-1][neuron_2].copy()
+            network_weight = self.bw_labels_nn[layer_index-1][neuron_2].copy()
+
         target_weight.move_to(self.w_labels_nn[layer_index-1][0])
         target_weight.shift(0.6*UP)
         error_t.target.scale(1/self.network_scale)
@@ -926,7 +950,7 @@ class NetworkSetup(NetworkScene):
         arrow.shift(0.15*UP)
 
         self.de_dw = VGroup(de_dw)
-        self.play(ReplacementTransform(network_weight,target_weight))        
+        self.play(ReplacementTransform(network_weight,target_weight))
         self.play(MoveToTarget(error_t))
         self.play(GrowArrow(arrow))
         self.trace_back(weight_index)
@@ -937,6 +961,7 @@ class NetworkSetup(NetworkScene):
         '''
         weight index is a list [layer, j, k]
         negative layer indexs work
+        if bias=True weight index is [layer, node#]
         '''   
         
         def get_edge_propogation_animations():
@@ -945,7 +970,6 @@ class NetworkSetup(NetworkScene):
             # Add edges out for each neuron in the branches
             edge_group_copy.add((*[n.edges_out.copy() for branch in flat_list for n in branch]))
             edge_group_copy.add(self.chosen_neurons[1][0][0].edges_in[neuron_1].copy())
-            
             edge_group_copy.set_stroke(
                 self.network_mob.edge_propogation_color,
                 width = 1.5*self.network_mob.edge_stroke_width
@@ -967,6 +991,9 @@ class NetworkSetup(NetworkScene):
         network = self.network_mob
         layer_index = weight_index[0]
         neuron_2 = weight_index[1]-1
+        # if bias:
+        #     neuron_1 = -1 #This will be the bias neuron
+        # else:
         neuron_1 = weight_index[2]-1
 
         chosen_neurons = VGroup()
@@ -1061,7 +1088,7 @@ class NetworkSetup(NetworkScene):
                 if len(neuron[0].edges_out)!=0:
                      self.play(highlight_graph(neuron[0].edges_out[edge]))
                 self.play(highlight_graph(neuron))
-                self.play(ReplacementTransform(VGroup(*[n0,neuron.label.copy()]), self.chain_rule[i]))
+                self.play(ReplacementTransform(VGroup(*[n0, neuron.label.copy()]), self.chain_rule[i]))
                 n0 = neuron.label.copy()
                 i += 1
             j+=1
@@ -1576,7 +1603,7 @@ class NetworkSetup(NetworkScene):
         final_eqn = VGroup(*[
             vec_derivatives[-1].copy(), 
             self.matrix_equals.copy(), 
-            TexMobject("(\\delta^L)^\\intercal"), 
+            TexMobject("(\\delta", "^L", ")^\\intercal"), 
             self.dot.copy(), 
             vec_derivatives[-4].copy(),
             self.hadamard[-2].copy(), 
@@ -1715,27 +1742,37 @@ class NetworkSetup(NetworkScene):
         final_eqn_set = VGroup(self.final_eqn[0:-1], 
             self.eqn_rect[-1], 
         )
-        final_eqn_set.next_to(self.final_eqn[-1], DOWN) 
-        self.deltaL_def.next_to(final_eqn_set, DOWN)
+        #final_eqn_set.next_to(self.final_eqn[-1], DOWN) 
+        self.deltaL_def.next_to(self.final_eqn[-1], 1.2*DOWN)
+        rect_L = SurroundingRectangle(self.deltaL_def, color=BLUE, buff=0.5*SMALL_BUFF)
+
+        self.play(FadeIn(VGroup(rect_L,self.deltaL_def)))
+        self.rect_L = rect_L
 
         #self.play(FadeIn(final_eqn_set), FadeIn(self.deltaL_def))
-        self.play(FadeIn(self.deltaL_def))
-
 
     def generalize_equations(self):        
         general_text = TextMobject("Generalizing the equations...")
         general_text.next_to(self.final_eqn[-1], UP)
         self.play(FadeIn(general_text)) 
-        for tex in it.chain(self.final_eqn[-1], self.deltaL_def): #self.final_eqn[0:-1],
+
+        for tex in self.final_eqn[-1]: #self.final_eqn[0:-1],
             one = tex.get_parts_by_tex("^{(1)}")
             two = tex.get_parts_by_tex("^{(2)}")
             zero = tex.get_parts_by_tex("^{(0)}")
-            for part_one, part_two, part_zero in it.zip_longest(one,two,zero):
+            big_ell = tex.get_parts_by_tex("^L")
+            for part_one, part_two, part_zero, part_ell in it.zip_longest(one,two,zero, big_ell):
                 if part_one is not None:
                     ell = part_one.get_tex_string()
                     ell = TexMobject(ell.replace("1", "\\ell"))
                     ell.replace(part_one)        
                     self.play(Transform(part_one, ell))
+                if part_ell is not None:
+                    ell = part_ell.get_tex_string()
+                    ell = TexMobject(ell.replace("L", "{(\\ell+1)}"))
+                    ell.replace(part_ell)
+                    ell.scale_in_place(1.3)        
+                    self.play(Transform(part_ell, ell))
                 if part_two is not None:
                     ell = part_two.get_tex_string()
                     ell = TexMobject(ell.replace("2", "\\ell+1"))
@@ -1747,7 +1784,114 @@ class NetworkSetup(NetworkScene):
                     ell.replace(part_zero)        
                     self.play(Transform(part_zero, ell))
 
-    def partial_derivative(self, weight_index):
+        for tex in self.deltaL_def: 
+            two = tex.get_parts_by_tex("^{(2)}")
+            for part_two in two:
+                if part_two is not None:
+                    big_ell = part_two.get_tex_string()
+                    big_ell = TexMobject(big_ell.replace("2", "L"))
+                    big_ell.replace(part_two)        
+                    self.play(Transform(part_two, big_ell))
+        self.play(VGroup(self.deltaL_def, self.rect_L).shift, 1.2*DOWN)
+        brace = Brace(VGroup(*self.final_eqn[-1][2:7]), DOWN, color=BLACK)
+        delta_l = TexMobject("\\delta^{(\\ell)}")
+        deeper_layers = TextMobject("If we had > 2 layers this would repeat")
+        deeper_layers.next_to(brace, 0.5*DOWN)
+        delta_l.move_to(deeper_layers)
+        self.play((GrowFromCenter(brace)), FadeIn(deeper_layers))
+        self.wait(4)
+        self.play(ReplacementTransform(deeper_layers, delta_l))
+        self.wait(5)
+        self.play(FadeOut(VGroup(
+            self.deltaL_def, 
+            self.rect_L, 
+            self.final_eqn[-1], 
+            general_text, 
+            brace, 
+            delta_l, 
+            self.final_eqn_rect)
+            )
+        )
+        bias_question = TextMobject("But what about the bias?")
+        self.play(FadeIn(bias_question))
+        self.wait(4)
+        self.play(FadeOut(bias_question))
+        self.de_dw_def = VGroup(self.final_eqn[-1], brace, delta_l)
+        self.de_dw_def.arrange(DOWN)
+
+    def generalize_bias(self):
+        bias_rect = SurroundingRectangle(self.end_derivative[-1], color=BLUE, buff=SMALL_BUFF)
+        self.play(ShowCreation(bias_rect))
+        bias = self.network_mob.bias[-1].neurons[-1].label.copy()
+        bias.generate_target()
+        bias.target.scale(1/self.network_scale)
+        bias.target.next_to(self.end_derivative, 3*RIGHT)
+
+        bias_arrow = Arrow(bias_rect.get_right(),
+            bias.target.get_left(),
+            buff=0.1, 
+            tip_length=0.1,
+            color=BLUE,
+            )
+        bias_arrow.set_stroke(width=4)
+        self.play(GrowArrow(bias_arrow), MoveToTarget(bias))
+
+        one = TexMobject("=", "1").scale(self.label_scale)
+        one.arrange(RIGHT)
+        one.next_to(bias, RIGHT)
+        one_copy = one[-1].copy()
+        one_copy.move_to(self.end_derivative[-1])
+        self.play(Write(one))
+        self.play(ReplacementTransform(self.end_derivative[-1], one_copy))
+        self.play(FadeOut(VGroup(bias, bias_arrow, one)))
+        self.play(FadeOut(VGroup(one_copy, bias_rect)))
+
+        recall = TexMobject("\\text{Recall this is just }", "\\delta")
+
+        bias_arrow.next_to(self.end_derivative[0])
+        recall.next_to(bias_arrow)
+        self.play(FadeIn(bias_arrow), Write(recall))
+        self.wait(1.5)
+        delta = TexMobject("\\delta_1^L")
+        delta.next_to(self.bp[0])
+        bias_arrow.start=delta.get_left()
+        self.play(ReplacementTransform(VGroup(self.bp[1], self.end_derivative[0]), delta),
+            bias_arrow.scale, 4, {"about_edge":RIGHT})
+        self.wait(2)
+        this_gens = TextMobject("This generalizes to...")
+        this_gens.move_to(recall)
+        self.play(ReplacementTransform(VGroup(bias_arrow, recall), this_gens))
+
+        delta_g = TexMobject("\\delta^{\\ell}")
+        delta_g.move_to(delta)
+        b = self.de_dw[0].get_part_by_tex("b")
+        big_b = TexMobject("B^{\\ell}")
+        big_b.scale(self.label_scale)
+        big_b.move_to(b, aligned_edge=LEFT)
+        b.submobject = big_b
+
+        self.play(Transform(b, big_b))
+        self.play(ReplacementTransform(delta, delta_g))
+        self.play(this_gens.shift, UP)
+        bias_eqn = VGroup(self.de_dw, self.bp[0], delta_g)
+        self.play(bias_eqn.next_to, this_gens, 1.1*DOWN)
+        bias_rect = SurroundingRectangle(bias_eqn, color=BLUE, buff=SMALL_BUFF)
+        self.play(ShowCreation(bias_rect))
+
+        self.play(FadeOut(VGroup(this_gens, self.full_network, bias_rect)))
+
+        self.bias_eqn = bias_eqn
+
+    def show_final_eqns(self):
+        final_set = VGroup(self.de_dw_def, self.deltaL_def)
+        final_set.arrange(1.5*DOWN)
+        final_set.move_to(ORIGIN)
+        final_set.shift(0.5*UP)
+        self.play(self.bias_eqn.next_to, final_set, 1.5*DOWN)
+        self.play(FadeIn(final_set))
+
+
+    def partial_derivative(self, weight_index, bias=False):
         '''
         weight index is a list [layer, j, k]
         negative layer indexs work
@@ -1755,7 +1899,13 @@ class NetworkSetup(NetworkScene):
 
         layer_index = weight_index[0]
         neuron_2 = weight_index[1]-1
-        neuron_1 = weight_index[2]-1
+        if not bias:
+            neuron_1 = weight_index[2]-1
+            weight = TexMobject("w^{(%d)}_{%d%d}" 
+                    %(layer_index, neuron_2+1, neuron_1+1))
+        else:
+            bias = TexMobject("b^{(%d)}_{%d}" 
+                    %(layer_index, neuron_2+1))
 
         layer = self.network_mob.layers[layer_index]
         n_neurons = len(layer.neurons)
@@ -1773,9 +1923,6 @@ class NetworkSetup(NetworkScene):
                 self.neuron_labels[-1][n].copy(),
                 self.sublayer_labels[-1][n].copy()
             ]))
-
-        weight = TexMobject("w^{(%d)}_{%d%d}" 
-                %(layer_index, neuron_2+1, neuron_1+1))
 
         # If we're only looking at the last layer only concerned
         # with neuron_2 error node path
@@ -1853,9 +2000,12 @@ class NetworkSetup(NetworkScene):
             self.neuron_labels[layer_index][neuron_2].copy(),
             self.sublayer_labels[layer_index-1][neuron_2].copy(),
         )
-        chain_end.add(weight)
+        if not bias:
+            chain_end.add(weight)
+        else: #bias
+            chain_end.add(bias)
         end_derivative = VGroup()
-        for term1,term2 in zip(chain_end[:-1], chain_end[1:]):
+        for term1, term2 in zip(chain_end[:-1], chain_end[1:]):
             end_derivative.add(
                 VGroup(*[TexMobject("{\\partial", term1.get_tex_string(), 
                             "\\over", 
