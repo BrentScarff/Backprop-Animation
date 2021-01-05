@@ -4,7 +4,8 @@ import numpy as np
 class Network(object):
     # This class is from 3B1B and copyright 3Blue1Brown LLC
     # https://github.com/3b1b/manim/blob/master/from_3b1b/old/nn/network.py 
-    # I have made some minor modifications.
+    # I have made some minor modifications, mainly removing things I didn't
+    # need.
     def __init__(self, sizes, non_linearity = "sigmoid"):
         """The list ``sizes`` contains the number of neurons in the
         respective layers of the network.  For example, if the list
@@ -23,10 +24,10 @@ class Network(object):
                         for x, y in zip(sizes[:-1], sizes[1:])]
         if non_linearity == "sigmoid":
             self.non_linearity = sigmoid
-            self.d_non_linearity = sigmoid_prime
+            #self.d_non_linearity = sigmoid_prime
         elif non_linearity == "ReLU":
             self.non_linearity = ReLU
-            self.d_non_linearity = ReLU_prime
+            #self.d_non_linearity = ReLU_prime
         else:
             raise Exception("Invalid non_linearity")
 
@@ -47,17 +48,10 @@ def sigmoid(z):
     """The sigmoid function."""
     return 1.0/(1.0+np.exp(-z))
 
-def sigmoid_prime(z):
-    """Derivative of the sigmoid function."""
-    return sigmoid(z)*(1-sigmoid(z))
-
 def ReLU(z):
     result = np.array(z)
     result[result < 0] = 0
     return result
-
-def ReLU_prime(z):
-    return (np.array(z) > 0).astype('int')
 
 class NetworkMobject(VGroup):
     CONFIG = {
@@ -180,7 +174,7 @@ class NetworkMobject(VGroup):
 
         return layer
 
-    def add_edges(self, output=False):  #THink can remove output arg
+    def add_edges(self):  #THink can remove output arg output=False
 
         self.edge_groups = VGroup()
         for l1, l2 in zip(self.layers[:-1], self.layers[1:]):
@@ -343,13 +337,13 @@ class NetworkMobject(VGroup):
         for activation, layer in zip(activations, self.layers):
             self.activate_layer(layer, activation)
 
-    def deactivate_layers(self):
-        all_neurons = VGroup(*it.chain(*[
-            layer.neurons
-            for layer in self.layers
-        ]))
-        all_neurons.set_fill(opacity = 0)
-        return self
+    # def deactivate_layers(self):
+    #     all_neurons = VGroup(*it.chain(*[
+    #         layer.neurons
+    #         for layer in self.layers
+    #     ]))
+    #     all_neurons.set_fill(opacity = 0)
+    #     return self
 
     def get_edge_propogation_animations(self, index, bias=False):
         if bias:
@@ -387,8 +381,8 @@ class NetworkScene(Scene):
         "label_scale" : 0.75,
         "network_mob_config" : {},
         "camera_config":{"background_color": WHITE}
-        #"#f5f8fa"
     }
+
     # The Scene class __init__ method calls this setup method
     def setup(self):
         self.add_network()
@@ -401,34 +395,22 @@ class NetworkScene(Scene):
         )
         self.add(self.network_mob)
 
-    def feed_forward(self, input_vector, false_confidence = False, added_anims = None):
-        if added_anims is None:
-            added_anims = []
-        activations = self.network.get_activation_of_all_layers(
-            input_vector
-        )
-        if false_confidence:
-            i = np.argmax(activations[-1])
-            activations[-1] *= 0
-            activations[-1][i] = 1.0
-        for i, activation in enumerate(activations):
-            self.show_activation_of_layer(i, activation, added_anims)
-            added_anims = []
+    # def feed_forward(self, input_vector,):
+    #     activations = self.network.get_activation_of_all_layers(input_vector)
+    #     for i, activation in enumerate(activations):
+    #         self.show_activation_of_layer(i, activation)
 
-    def show_activation_of_layer(self, layer_index, activation_vector, added_anims = None):
-        if added_anims is None:
-            added_anims = []
-        layer = self.network_mob.layers[layer_index]
-        active_layer = self.network_mob.get_active_layer(
-            layer_index, activation_vector
-        )
-        anims = [Transform(layer, active_layer)]
-        if layer_index > 0:
-            anims += self.network_mob.get_edge_propogation_animations(
-                layer_index-1
-            )
-        anims += added_anims
-        self.play(*anims)
+    # def show_activation_of_layer(self, layer_index, activation_vector):
+    #     layer = self.network_mob.layers[layer_index]
+    #     active_layer = self.network_mob.get_active_layer(
+    #         layer_index, activation_vector
+    #     )
+    #     anims = [Transform(layer, active_layer)]
+    #     if layer_index > 0:
+    #         anims += self.network_mob.get_edge_propogation_animations(
+    #             layer_index-1
+    #         )
+        # self.play(*anims)
 
 class Intro(NetworkScene):
     color = color_gradient([BLUE_B, YELLOW_B, BLUE_B], 5)
@@ -452,21 +434,23 @@ class Intro(NetworkScene):
 
     def construct(self):
         self.show_words()
+        self.wait(2)
         self.show_network()
         self.transform_network()
 
     def show_words(self):
-        self.words = TextMobject("Backpropagation")
+        self.words = TextMobject("What is a Neural Network?")
+        self.words.scale(1.5)
         self.words.set_color(BLUE)
         self.play(FadeIn(self.words))
 
     def show_network(self):
         network_mob = self.network_mob
-
+        flat_layers = VGroup(*it.chain(*network_mob.layers))
         self.play(
             ReplacementTransform(
-                VGroup(self.words),
-                network_mob.layers
+                self.words,
+                VGroup(flat_layers)
             ),
         )
         self.play(ShowCreation(
@@ -476,9 +460,10 @@ class Intro(NetworkScene):
             rate_func=linear,
         ))
         in_vect = np.random.random(self.network.sizes[0])
-        self.feed_forward(in_vect)
+        network_mob.activate_layers(in_vect)
 
     def transform_network(self):
+        #I should have broken this up more...
 
         big_network = Network(sizes = [15, 12, 14, 12, 8, 6])
         self.big_network_mob = NetworkMobject(
@@ -494,45 +479,109 @@ class Intro(NetworkScene):
         self.add(self.big_network_mob)
 
         in_vect = np.random.random(big_network.sizes[0])*(1-0.4) + 0.4
-        #self.feed_forward(in_vect)
         big_net.activate_layers(in_vect)
 
-        edges = VGroup(*it.chain(*self.big_network_mob.edge_groups))
+        edges=VGroup()
+        self.edges = VGroup()
+        for i, edge_group in enumerate(self.big_network_mob.edge_groups):
+            layer = i
+            for edge in edge_group:
+                edges.add(edge)
+                edge.layer = i
+        self.edges = edges
         neurons = VGroup(*it.chain(*[l.neurons for l in self.big_network_mob.layers]))
         for neuron in neurons: 
             neuron.colors = [BLUE_A, BLUE_A, WHITE, BLUE_B, BLUE_B]
             random.shuffle(neuron.colors)
-            neuron.cycle_time = 0.4*(1 + random.random())
+            neuron.cycle_time = 0.5*(1 + random.random())
             neuron.sign = 1
-            neuron.set_opacity=1
-        #neuron_edges = VGroup(*[neuron.edges_out for neuron in neurons])
-        #neurons = [l.neurons for l in self.big_network_mob.layers]
+        
+        self.step = 5
+        segments = VGroup()
+        self.sign=1
+        self.internal_time=0 
+        color = color_gradient([GRAY, BLUE_B, WHITE, BLUE_B, GRAY], 5)
 
-        reversed_edges = VGroup(*reversed(edges))
-        epochs = 2
-        for x in range(epochs):
-            time = 3/(x+2)
-            #Wiggle all edges
-            self.play(LaggedStartMap(
-                ApplyFunction, edges,
-                lambda edge : (
-                    lambda m : m.rotate_in_place(np.pi/12).set_color(YELLOW),
-                    edge,
-                ),
-                rate_func = lambda t : wiggle(t, 4),
-                run_time = time,
-            ))
+        for edge in edges[::self.step]:
+            segment = edge.copy().scale_in_place(0.2)
+            segment.set_stroke(color, 1.5*self.big_network_mob.edge_stroke_width)
+            segments.add(segment)
+            segment.layer = edge.layer
+            segment.cycle_time = 0.5 
 
-            #Wiggle all edges backwards
-            self.play(LaggedStartMap(
-                    ApplyFunction, reversed_edges,
-                    lambda edge : (
-                        lambda m : m.rotate_in_place(np.pi/12).set_color(YELLOW),
-                        edge,
-                    ),
-                    rate_func = lambda t : wiggle(t,8),
-                    run_time = time,
-                    ))
+        segments.set_opacity(0)
+        self.opacity = 1
+        num_layers = len(big_network.sizes)
+        total_time = segment.cycle_time * num_layers
+        layer_time = segment.cycle_time
+        
+        def edge_activation(segments, dt):
+            self.internal_time += dt
+            
+            for i, segment in enumerate(segments):
+                
+                edge = edges[i*self.step]
+                seg_scale = 0.2/(segment.get_length()/edge.get_length())
+                segment.scale_in_place(seg_scale)
+                segment.set_angle(edge.get_angle())
+                
+                if self.internal_time < total_time: #Forward pass
+                    start_time = segment.cycle_time*segment.layer#*i/15
+                    if self.internal_time > start_time:
+                        segment.set_opacity(self.opacity)                     
+
+                    alpha = np.fmod(self.internal_time-start_time,segment.cycle_time)/segment.cycle_time               
+                    segment.move_to(edge.point_from_proportion(max(alpha,0.)))
+                
+                else: #Backward pass
+                    segment.set_opacity(0)
+                    start_time = total_time + segment.cycle_time*(num_layers - 1.5 - segment.layer)
+                    if self.internal_time > start_time:
+                        segment.set_opacity(self.opacity)                 
+ 
+                    alpha = np.fmod(self.internal_time-start_time,segment.cycle_time)/segment.cycle_time        
+                    segment.move_to(edge.point_from_proportion(min(1-alpha,1.)))          
+    
+        def neuron_activation(neurons, layer, layer_size):
+            for neuron in neurons[:layer_size]:
+                t = (self.internal_time)/neuron.cycle_time
+                low_n = int(t)%len(neuron.colors)
+                high_n = int(t+1)%len(neuron.colors)
+                alpha = ((self.internal_time)%neuron.cycle_time)/neuron.cycle_time
+                color = interpolate_color(neuron.get_color(), neuron.colors[high_n], alpha)
+                neuron.set_fill(color)
+                neuron.set_stroke(color, opacity=alpha)
+
+        def forward_activation(neurons, dt):
+            last_layer = 0
+            for layer, layer_size in enumerate(big_network.sizes):
+                if self.internal_time > layer*layer_time:
+                    neuron_activation(neurons, layer, layer_size+last_layer)
+                last_layer += layer_size
+
+        def reverse_activation(neurons, dt):
+            last_layer = 0
+            for layer, layer_size in enumerate(big_network.sizes[::-1]):
+                if self.internal_time > total_time+2*dt + layer*layer_time:
+                    neuron_activation(neurons, layer, layer_size+last_layer)
+                last_layer += layer_size
+
+        learning_question = TextMobject("How Does a Network Learn?")
+        learning_question.set_color(BLUE_B)
+        learning_question.to_edge(UP)
+
+        segments.add_updater(edge_activation)
+        neurons.add_updater(forward_activation)
+        self.add(segments, neurons)
+        self.play(Write(learning_question), run_time=1)
+        self.wait(total_time-1)
+        neurons.remove_updater(forward_activation)
+
+        reverse_neurons = neurons[::-1] 
+        reverse_neurons.add_updater(reverse_activation)
+        self.add(reverse_neurons)
+        self.wait(total_time-1)
+        self.play(FadeOut(learning_question))
 
         direction = [UP, DOWN, RIGHT, LEFT, UR, DL, UL, DR]
 
@@ -543,8 +592,9 @@ class Intro(NetworkScene):
 
                 vel = 2*random.choice(direction)
                 rot = 0.7
-                if n1.is_off_screen():
-                    n1.sign = -1
+                #add this back in if want neurons to bounce around
+                #if n1.is_off_screen(): 
+                #    n1.sign = -1
 
                 shift_neuron1 = n1.shift(n1.sign*dt*vel)
                 if i < len(neurons)-2:
@@ -553,70 +603,38 @@ class Intro(NetworkScene):
                     shift_neuron1.rotate(n1.sign*rot*dt, about_point=neurons[i-1].get_center())
                 new_neurons.add(shift_neuron1)
 
-        self.internal_time=0   
         def update_edges(network, dt):
             new_edges = network.update_edges()           
             old_net = VGroup(*network.edge_groups)
             new_net = VGroup(*new_edges)
-                
             old_net.become(new_net)
-
-        def edge_activation(segments, dt):
-            self.internal_time += dt
-            for i, segment in enumerate(segments):
-                alpha = ((self.internal_time-1)%segment.cycle_time)/segment.cycle_time
-                edge = edges[i*self.step]
-                seg_scale = 0.2/(segment.get_length()/edge.get_length())
-                segment.scale_in_place(seg_scale)
-                segment.set_angle(edge.get_angle())               
-                segment.move_to(edge.point_from_proportion(alpha))
-
-        def neuron_activation(segments, dt):
-            for neuron in neurons:
-                #neuron.cycle_time = 2*(1 + random.random())
-                t = (self.internal_time)/neuron.cycle_time
-                low_n = int(t)%len(neuron.colors)
-                high_n = int(t+1)%len(neuron.colors)
-                alpha = ((self.internal_time)%neuron.cycle_time)/neuron.cycle_time
-                #t = (self.internal_time-1)/neuron.cycle_time
-                color = interpolate_color(neuron.get_color(), neuron.colors[high_n], alpha)
-                neuron.set_fill(color)
-                neuron.set_stroke(color, opacity=alpha)
-               
-        segments = VGroup()
-        self.t_offset = 0
-        self.sign=1
-        color = color_gradient([GRAY, BLUE_B, WHITE, BLUE_B, GRAY], 5)
-        self.step = 12
-        for edge in edges[::self.step]:
-            segment = edge.copy().scale_in_place(0.2)
-            segment.set_stroke(color, 1.5*self.big_network_mob.edge_stroke_width)
-            segment.move_to(edge.point_from_proportion(0))
-            segments.add(segment)
-            segment.cycle_time = 1 + random.random()
-
+        
         big_net.add_updater(update_edges)
         neurons.add_updater(update_neurons)
-        segments.add_updater(edge_activation)
-        neurons.add_updater(neuron_activation)
-
-        self.add(neurons, big_net, segments)
-        self.wait(6)
+        for segment in segments:
+            segment.cycle_time = 1.2 + 2*random.random()
+        self.add(neurons, big_net, segments, reverse_neurons)
+        self.wait(3)
         big_net.clear_updaters()
         neurons.remove_updater(update_neurons)
+        self.opacity=0.6
+        segments.set_opacity(self.opacity)
+
+        self.play(self.big_network_mob.fade, 0.5, run_time=2)
         self.wait(1)
         self.add_equations()
-        #big_net.clear_updaters()
 
-        # self.play(alpha.set_value, 0.2,
-        #     rate_func=double_smooth,
-        #     run_time=1)
+        back_prop = TextMobject("BACKPROPAGATION \\\\ A VISUAL WALKTHROUGH")
+        author = TextMobject("by Brent Scarff")
+        author.scale(0.6)
+        author.next_to(back_prop, DOWN, aligned_edge=RIGHT)
+     
+        self.remove(segments)
+        flat_edges = VGroup(*it.chain(*self.big_network_mob.edge_groups))
+        self.play(Transform(VGroup(flat_edges), back_prop))
+        self.play(FadeIn(author))
+        self.wait(2)
 
-        # self.play(alpha.set_value, 0.2,
-        #     UpdateFromFunc(big_net, update),
-        #         rate_func=double_smooth,
-        #         run_time=1 
-        #     )
     def add_equations(self):
         de_dw_mat = TexMobject("{\\partial E", "\\over", "\\partial W", "^{(\\ell)}}")
         equals = TexMobject("=")
@@ -686,7 +704,7 @@ class Intro(NetworkScene):
         delta_L_eqn.rotate(-TAU/12)
         delta_L_eqn.shift(1.9*DL)
 
-        self.play(self.big_network_mob.fade, 0.5)
+        
         self.play(FadeIn(VGroup(vec_derivatives, 
             bias_eqn, 
             delta_l_eqn, 
@@ -700,7 +718,6 @@ class Intro(NetworkScene):
         outlines.set_stroke(BLUE_B, opacity=0.7)
         outlines.set_fill(opacity=0)
         self.play(Write(outlines))
-        #self.wait(2)
         self.play(FadeOut(vec_derivatives), 
             FadeOut(delta_l_eqn),
             FadeOut(delta_L_eqn),
