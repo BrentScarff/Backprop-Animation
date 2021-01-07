@@ -1,5 +1,5 @@
 # Backprop-Animation
-Working copy of backpropogation deriviation.
+Manim code for a Backpropagation deriviation.
 
-In addition to .yml file requires pip install manimlib.  LaTex distribution also required like MikTex.  
+In addition to .yml file requires pip install manimlib.  A LaTex distribution like MikTex is also required.  
 You may have to install all packages for manim to work.
