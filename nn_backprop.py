@@ -43,7 +43,7 @@ class Network(object):
             activations.append(new_a)
         return activations    
 
-#### Miscellaneous functions - not currently used
+#### Miscellaneous functions 
 def sigmoid(z):
     """The sigmoid function."""
     return 1.0/(1.0+np.exp(-z))
@@ -61,7 +61,7 @@ class NetworkMobject(VGroup):
         "neuron_stroke_color" : BLUE,
         "neuron_stroke_width" : 3,
         "neuron_fill_color" : GREEN,
-        "edge_color" : DARKER_GREY,
+        "edge_color" : WHITE, #DARKER_GREY,
         "edge_stroke_width" : 2,
         "edge_propogation_color" : YELLOW_E,
         "edge_propogation_time" : 1,
@@ -174,7 +174,7 @@ class NetworkMobject(VGroup):
 
         return layer
 
-    def add_edges(self):  #THink can remove output arg output=False
+    def add_edges(self):  
 
         self.edge_groups = VGroup()
         for l1, l2 in zip(self.layers[:-1], self.layers[1:]):
@@ -195,43 +195,8 @@ class NetworkMobject(VGroup):
             for n1, n2 in it.product(l1.neurons, l2.neurons):
                 edge = self.get_edge(n1, n2)
                 edge_group.add(edge)
-                #n1.edges_out.add(edge)
-                #n2.edges_in.add(edge)
             new_edge_group.add(edge_group)
-        #self.add_to_back(self.edge_groups)
         return new_edge_group
-
-    # def update_edges(self, layer):
-        
-    #     i1 = layer
-    #     if layer >= (len(self.layers)-1):
-    #         i0 = layer - 1
-    #         l0, l1, l2 = self.layers[i0], self.layers[i1], None
-    #     elif layer <= 0:
-    #        i2 = layer + 1
-    #        l0, l1, l2 = None, self.layers[i1], self.layers[i2]
-    #     else:
-    #         i0 = layer - 1
-    #         i2 = layer + 1
-    #         l0, l1, l2 = self.layers[i0], self.layers[i1], self.layers[i2]
-            
-    #     new_edge_group = VGroup()
-    #     if l0 is not None:
-    #         new_edge_group1 = VGroup()
-    #         for n0, n1 in it.product(l0.neurons, l1.neurons):
-    #             edge = self.get_edge(n0, n1)
-    #             new_edge_group1.add(edge)
-    #         new_edge_group.add(new_edge_group1)
-        
-    #     if l2 is not None:
-    #         new_edge_group2= VGroup()
-    #         for n1, n2 in it.product(l1.neurons, l2.neurons):
-    #             edge = self.get_edge(n1, n2)
-    #             new_edge_group2.add(edge)
-    #             #edge = self.get_edge(self.layers[i1-1].neurons, n1)
-    #         new_edge_group.add(new_edge_group2)
-        
-    #     return new_edge_group
 
     def add_bias_edges(self):
         # Assumes edges run first and self.edge_groups exists.
@@ -240,8 +205,8 @@ class NetworkMobject(VGroup):
             edge_group = VGroup()
             for n1, n2 in it.product(l1.neurons, l2.neurons):
                 edge = self.get_edge(n1, n2)
-                #edge.set_opacity(0.3)
                 edge.set_color(LIGHT_GREY)
+                edge.set_opacity(0.25)
                 edge_group.add(edge)
                 n1.edges_out.add(edge)
                 n2.edges_in.add(edge)
@@ -286,8 +251,7 @@ class NetworkMobject(VGroup):
         for n1, n2 in zip(self.layers[-1].neurons, self.outputs[0].neurons):
             arrow = self.get_arrow(n1, n2)
             self.arrow_groups.add(arrow)
-            #n1.edges_out.add(edge)
-            #n2.edges_in.add(edge)
+
         self.add_to_back(self.arrow_groups)
 
 
@@ -337,14 +301,6 @@ class NetworkMobject(VGroup):
         for activation, layer in zip(activations, self.layers):
             self.activate_layer(layer, activation)
 
-    # def deactivate_layers(self):
-    #     all_neurons = VGroup(*it.chain(*[
-    #         layer.neurons
-    #         for layer in self.layers
-    #     ]))
-    #     all_neurons.set_fill(opacity = 0)
-    #     return self
-
     def get_edge_propogation_animations(self, index, bias=False):
         if bias:
            edge_group_copy = self.bias_edge_groups[index].copy() 
@@ -361,26 +317,26 @@ class NetworkMobject(VGroup):
             lag_ratio = 0.5
         )]
 
-class TexMobject(TexMobject):
-    #Updating TexMobject color config
-    CONFIG = {
-        "color": DARKER_GREY,
-        "background_stroke_color": GREY,
-        #"fill_color": BLACK
-    }
-class TextMobject(TextMobject):
-    #Updating TextMobjet color
-    CONFIG = {
-        "color": DARKER_GREY,
-        "background_stroke_color": GREY,
-    }
+# class TexMobject(TexMobject):
+#     #Updating TexMobject color config
+#     CONFIG = {
+#         "color": DARKER_GREY,
+#         "background_stroke_color": GREY,
+#         #"fill_color": BLACK
+#     }
+# class TextMobject(TextMobject):
+#     #Updating TextMobjet color
+#     CONFIG = {
+#         "color": DARKER_GREY,
+#         "background_stroke_color": GREY,
+#     }
 
 class NetworkScene(Scene):
     CONFIG = {
         "layer_sizes" : [2, 2, 2],
         "label_scale" : 0.75,
         "network_mob_config" : {},
-        "camera_config":{"background_color": WHITE}
+        #"camera_config":{"background_color": WHITE}
     }
 
     # The Scene class __init__ method calls this setup method
@@ -395,23 +351,6 @@ class NetworkScene(Scene):
         )
         self.add(self.network_mob)
 
-    # def feed_forward(self, input_vector,):
-    #     activations = self.network.get_activation_of_all_layers(input_vector)
-    #     for i, activation in enumerate(activations):
-    #         self.show_activation_of_layer(i, activation)
-
-    # def show_activation_of_layer(self, layer_index, activation_vector):
-    #     layer = self.network_mob.layers[layer_index]
-    #     active_layer = self.network_mob.get_active_layer(
-    #         layer_index, activation_vector
-    #     )
-    #     anims = [Transform(layer, active_layer)]
-    #     if layer_index > 0:
-    #         anims += self.network_mob.get_edge_propogation_animations(
-    #             layer_index-1
-    #         )
-        # self.play(*anims)
-
 class Intro(NetworkScene):
     color = color_gradient([BLUE_B, YELLOW_B, BLUE_B], 5)
     CONFIG = {
@@ -421,11 +360,11 @@ class Intro(NetworkScene):
             "layer_to_layer_buff" : 1.5,
             "edge_propogation_time" : 0.4,
             "neuron_fill_color" : BLUE_A,
-            "edge_color" : GREY,
+            "edge_color" : WHITE, #GREY,
             "edge_propogation_color" : color,
             "network_calculations" : False
         },
-        "camera_config":{"background_color": WHITE}
+        #"camera_config":{"background_color": WHITE}
     }
 
     def setup(self):
@@ -727,7 +666,7 @@ class Intro(NetworkScene):
 class NetworkSetup(NetworkScene):
     CONFIG = {
         "network_mob_config" : {
-            "neuron_stroke_color" : DARKER_GREY,
+            "neuron_stroke_color" : WHITE,#DARKER_GREY,
             "neuron_fill_color" : GREY,
             "neuron_radius" : 0.45,
             "layer_to_layer_buff" : 2,
@@ -806,7 +745,6 @@ class NetworkSetup(NetworkScene):
         #self.network_mob.layers[1].neurons.shift(0.02*RIGHT)
 
     def show_labels(self):
-        #self.fade_many_neurons()
         self.activate_layer(0)
         self.activate_layer(1)
         self.activate_layer(2)
@@ -815,17 +753,12 @@ class NetworkSetup(NetworkScene):
         # neuron_2 = 1
         # self.show_error(neuron_1, UP, 'bce')
         # self.show_error(neuron_2, DOWN, 'mse')
-        #self.show_first_neuron_weighted_sum()
-        #self.add_bias()
-        #self.add_sigmoid()
 
     def activate_layer(self, layer_index, label='a', bias=True, sublayer=False):
         if sublayer:
             layer = self.network_mob.layers[layer_index].sublayer
         else:
             layer = self.network_mob.layers[layer_index]
-        #activations = 0.7*np.random.random(len(layer.neurons))
-        #active_layer = self.network_mob.get_active_layer(layer_index, activations)
 
         if layer_index > 0:
             neuron_labels = VGroup(*[
@@ -845,20 +778,14 @@ class NetworkSetup(NetworkScene):
             label.move_to(neuron)
             neuron.label = label
 
-        #self.play(
-         #   Transform(layer, active_layer),
-            #Write(neuron_labels, run_time = 1),
-        #)
         self.add(neuron_labels)
 
         if sublayer:
             try: 
                 self.sublayer_labels.add_to_back(neuron_labels)
             except:
-                #TODO: 
                 self.sublayer_labels = VGroup()
                 self.sublayer_labels.add_to_back(neuron_labels)
-                #self.sublayer_labels = neuron_labels
         else:   
             try: 
                 self.neuron_labels.add(neuron_labels)
@@ -869,9 +796,6 @@ class NetworkSetup(NetworkScene):
     def activate_output(self):
 
         layer = self.network_mob.outputs[0]
-        #activations = 0.7*np.random.random(len(layer.neurons))
-        #active_layer = self.network_mob.get_active_layer(layer_index, activations)
-
         e_labels = VGroup(*[
             TexMobject("e",
                 "^{(%d)}_%d"%(self.network_mob.neural_network.num_layers,d+1))
@@ -886,18 +810,11 @@ class NetworkSetup(NetworkScene):
             neuron.label = label
         e_labels[-1].move_to(self.network_mob.outputs[-1].neurons)
         self.add(e_labels)
-        # self.play(
-        #     #Transform(layer, active_layer),
-        #     Write(e_labels, run_time = 2)
-        # )
         self.e_labels = e_labels
 
     def activate_bias(self, layer_index):
 
         layer = self.network_mob.bias[layer_index-1]
-        #activations = 0.7*np.random.random(len(layer.neurons))
-        #active_layer = self.network_mob.get_active_layer(layer_index, activations)
-
         b_labels = TexMobject("b^{(%d)}"%(layer_index))
 
         for label, neuron in zip(b_labels, layer.neurons):
@@ -905,10 +822,6 @@ class NetworkSetup(NetworkScene):
             label.move_to(neuron)
             neuron.label = label
 
-        #self.play(
-            #Transform(layer, active_layer),
-        #    Write(b_labels, run_time = 0.5)
-        #)
         self.add(b_labels) 
         try:
             self.b_labels.add(b_labels)
@@ -917,13 +830,6 @@ class NetworkSetup(NetworkScene):
             self.b_labels.add(b_labels)
 
     def show_weights(self):
-        # self.chosen_neurons = VGroup()
-        # layer = self.network_mob.layers[1]
-        # for neuron in layer.neurons:
-        #     self.chosen_neurons.add(neuron)
-
-        # for neuron in self.chosen_neurons:
-        #     self.play(Indicate(neuron))
         self.activate_neuron_weights(1)
         self.activate_neuron_weights(2)
         self.activate_bias_weights(1)
@@ -976,7 +882,6 @@ class NetworkSetup(NetworkScene):
             self.w_labels_nn = VGroup()
             self.w_labels_nn.add(w_labels_nn)
 
-        #self.play(*anim_edges)
         self.play(*anim_edges,
             Write(w_labels_nn, run_time = 1)
         )
@@ -1032,6 +937,7 @@ class NetworkSetup(NetworkScene):
     def bce(self):
         ''' 
         Binary Cross Entropy error function label
+        Currently not used.
         '''
 
         # Define existing labels we will be copying and moving around
@@ -1072,6 +978,7 @@ class NetworkSetup(NetworkScene):
     def mse(self):
         ''' 
         Mean Squared Error function label
+        Currently not used
         '''
 
         # Define existing labels we will be copying and moving around
@@ -1089,18 +996,15 @@ class NetworkSetup(NetworkScene):
         ket = TexMobject(")")
         square = TexMobject(")^2")
         error_sum.add(half, bra, y_label, minus, neuron_label, square)
-        #error_sum = VGroup(
-        #    half, bra, y_label, minus, neuron_label, square
-        #    )
         error_sum.arrange(RIGHT, buff=SMALL_BUFF)
 
         y_label.set_color(YELLOW)
-        #neuron_label.set_color(BLUE)
 
         return error_type, error_sum, neuron_labels
 
     def show_error(self, neuron_index, position, error_func):
         '''
+        Currently not used.
         neuron_index = the output neuron that we will use 
         for positioning equations.
         position = where to display the equation relative to 
@@ -1129,8 +1033,7 @@ class NetworkSetup(NetworkScene):
         equals.next_to(e_label, RIGHT, buff=SMALL_BUFF)
         equals.scale(scale_factor)
         error_sum.next_to(equals, RIGHT)
-
-        #error_sum.to_edge(RIGHT)        
+       
         error_type.next_to(neuron, position)
 
         e_label.set_color(ORANGE)
@@ -1147,12 +1050,10 @@ class NetworkSetup(NetworkScene):
         self.play(
             ReplacementTransform(error_type,equals),
             MoveToTarget(e_labels, run_time = 1.5),
-            #neuron.set_fill, None, 0.3,
             run_time = 1
         )
         self.play(
             MoveToTarget(neuron_labels, run_time = 1.5),
-            #ReplacementTransform(neuron_labels, neuron_labels.target, run_time=1.5)
         )
 
         self.play(
@@ -1328,9 +1229,6 @@ class NetworkSetup(NetworkScene):
         network = self.network_mob
         layer_index = weight_index[0]
         neuron_2 = weight_index[1]-1
-        # if bias:
-        #     neuron_1 = -1 #This will be the bias neuron
-        # else:
         neuron_1 = weight_index[2]-1
 
         chosen_neurons = VGroup()
@@ -1470,7 +1368,6 @@ class NetworkSetup(NetworkScene):
         except:
             self.equation = VGroup()
             equation.target.to_edge(direction)
-            #self.de_dw_terms = VGroup()
             self.de_dw_terms=self.de_dw#, self.bp[0])
             self.equals_terms=self.equals
             self.de_da_terms=self.de_da_term
@@ -1535,7 +1432,6 @@ class NetworkSetup(NetworkScene):
     def add_multipliers(self, vecs):
         hadamard = TexMobject("\\odot")
         multipliers = VGroup(*[hadamard.copy(), hadamard.copy()])
-        #mult_arrows= Arrows(multipliers)
         self.move_to_center(vecs[0], multipliers[0], vecs[1])
         self.move_to_center(vecs[1], multipliers[1], vecs[2])
         self.play(FadeIn(multipliers))
@@ -1597,7 +1493,8 @@ class NetworkSetup(NetworkScene):
         self.play(FadeIn(vec_derivatives, lag_ratio=0.6),
                 LaggedStartMap(GrowArrow, arrows, run_time=1))
 
-        brace = Brace(VGroup(*vec_derivatives[0:2]), DOWN, color=BLACK)
+        #Change to black for white background
+        brace = Brace(VGroup(*vec_derivatives[0:2]), DOWN, color=WHITE) 
         delta = TexMobject("\\delta^L")
         delta.next_to(brace, DOWN)
         self.play(GrowFromCenter(brace), FadeIn(delta))
@@ -1625,7 +1522,6 @@ class NetworkSetup(NetworkScene):
         eqn_rect = SurroundingRectangle(final_eqn, color=BLUE, buff=SMALL_BUFF)
         
         self.play(ShowCreation(eqn_rect))
-        #TextMobject("Final Layer Formula Complete...")
         self.vec_derivatives = vec_derivatives
         self.eqn_rect = eqn_rect
         self.final_eqn = final_eqn
@@ -1775,7 +1671,7 @@ class NetworkSetup(NetworkScene):
         self.play(MoveToTarget(delta_1))
         self.play(VGroup(left_part_eqn, right_part_eqn).next_to, delta_1, RIGHT, 0.1*scale)
         
-        #sub delta for the two derivative terms
+        # sub delta for the two derivative terms
         # May be able to assign the submobjects values rather than use
         # .replace() since this doesn't seem to work well. see 
         # write_out_formulas_sublayers(self) for an example. 
@@ -2079,21 +1975,18 @@ class NetworkSetup(NetworkScene):
         final_eqn_set = VGroup(self.final_eqn[0:-1], 
             self.eqn_rect[-1], 
         )
-        #final_eqn_set.next_to(self.final_eqn[-1], DOWN) 
         self.deltaL_def.next_to(self.final_eqn[-1], 1.2*DOWN)
         rect_L = SurroundingRectangle(self.deltaL_def, color=BLUE, buff=0.5*SMALL_BUFF)
 
         self.play(FadeIn(VGroup(rect_L,self.deltaL_def)))
         self.rect_L = rect_L
 
-        #self.play(FadeIn(final_eqn_set), FadeIn(self.deltaL_def))
-
     def generalize_equations(self):        
         general_text = TextMobject("Generalizing the equations...")
         general_text.next_to(self.final_eqn[-1], UP)
         self.play(FadeIn(general_text)) 
 
-        for tex in self.final_eqn[-1]: #self.final_eqn[0:-1],
+        for tex in self.final_eqn[-1]: 
             one = tex.get_parts_by_tex("^{(1)}")
             two = tex.get_parts_by_tex("^{(2)}")
             zero = tex.get_parts_by_tex("^{(0)}")
@@ -2130,7 +2023,8 @@ class NetworkSetup(NetworkScene):
                     big_ell.replace(part_two)        
                     self.play(Transform(part_two, big_ell))
         self.play(VGroup(self.deltaL_def, self.rect_L).shift, 1.2*DOWN)
-        brace = Brace(VGroup(*self.final_eqn[-1][2:7]), DOWN, color=BLACK)
+        #Change to black for white background
+        brace = Brace(VGroup(*self.final_eqn[-1][2:7]), DOWN, color=WHITE)
         delta_l = TexMobject("\\delta^{(\\ell)}")
         deeper_layers = TextMobject("If we had > 2 layers this would repeat")
         deeper_layers.next_to(brace, 0.5*DOWN)
